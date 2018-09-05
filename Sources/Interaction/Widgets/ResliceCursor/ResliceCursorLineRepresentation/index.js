@@ -388,7 +388,12 @@ function vtkResliceCursorLineRepresentation(publicAPI, model) {
     publicAPI.buildRepresentation();
 
     // Update CameraPosition
+    publicAPI.updateCamera();
 
+    return [model.imageActor, ...model.resliceCursorActor.getActors()];
+  };
+
+  publicAPI.updateCamera = () => {
     const normalAxis = model.resliceCursorActor
       .getCursorAlgorithm()
       .getReslicePlaneNormal();
@@ -405,10 +410,29 @@ function vtkResliceCursorLineRepresentation(publicAPI, model) {
       vtkMath.distance2BetweenPoints(position, focalPoint)
     );
 
-    const newCameraPosition = [
+    const estimatedCameraPosition = [
       focalPoint[0] + distance * normal[0],
       focalPoint[1] + distance * normal[1],
       focalPoint[2] + distance * normal[2],
+    ];
+
+    // intersect with the plane to get updated focal point
+    const intersection = vtkPlane.intersectWithLine(
+      focalPoint,
+      estimatedCameraPosition,
+      normalPlane.getOrigin(),
+      normalPlane.getNormal()
+    );
+    const newFocalPoint = intersection.x;
+
+    model.renderer
+      .getActiveCamera()
+      .setFocalPoint(newFocalPoint[0], newFocalPoint[1], newFocalPoint[2]);
+
+    const newCameraPosition = [
+      newFocalPoint[0] + distance * normal[0],
+      newFocalPoint[1] + distance * normal[1],
+      newFocalPoint[2] + distance * normal[2],
     ];
 
     model.renderer
@@ -418,22 +442,80 @@ function vtkResliceCursorLineRepresentation(publicAPI, model) {
         newCameraPosition[1],
         newCameraPosition[2]
       );
-    // intersect with the plane to get updated focal point
-    const intersection = vtkPlane.intersectWithLine(
-      focalPoint,
-      newCameraPosition,
-      normalPlane.getOrigin(),
-      normalPlane.getNormal()
-    );
 
-    model.renderer
-      .getActiveCamera()
-      .setFocalPoint(intersection.x[0], intersection.x[1], intersection.x[2]);
+    // Renderer may not have yet actor bounds
+    const rendererBounds = model.renderer.computeVisiblePropBounds();
+    const bounds = publicAPI.getBounds();
+    rendererBounds[0] = Math.min(bounds[0], rendererBounds[0]);
+    rendererBounds[1] = Math.max(bounds[1], rendererBounds[1]);
+    rendererBounds[2] = Math.min(bounds[2], rendererBounds[2]);
+    rendererBounds[3] = Math.max(bounds[3], rendererBounds[3]);
+    rendererBounds[4] = Math.min(bounds[4], rendererBounds[4]);
+    rendererBounds[5] = Math.max(bounds[5], rendererBounds[5]);
 
     // Don't clip away any part of the data.
-    model.renderer.resetCameraClippingRange();
+    model.renderer.resetCameraClippingRange(rendererBounds);
+  };
 
-    return [model.imageActor, ...model.resliceCursorActor.getActors()];
+  /**
+   * Reimplemented to look at image center instead of reslice cursor.
+   * Maybe it could be moved to ResliceCursorRepresentation
+   */
+  publicAPI.resetCamera = () => {
+    if (model.renderer) {
+      const bounds = publicAPI.getBounds();
+      const center = [
+        (bounds[0] + bounds[1]) / 2,
+        (bounds[2] + bounds[3]) / 2,
+        (bounds[4] + bounds[5]) / 2,
+      ];
+
+      const focalPoint = model.renderer.getActiveCamera().getFocalPoint();
+      const position = model.renderer.getActiveCamera().getPosition();
+
+      // Distance is preserved
+      const distance = Math.sqrt(
+        vtkMath.distance2BetweenPoints(position, focalPoint)
+      );
+
+      const normalAxis = publicAPI.getCursorAlgorithm().getReslicePlaneNormal();
+      const normal = publicAPI
+        .getResliceCursor()
+        .getPlane(normalAxis)
+        .getNormal();
+
+      const estimatedFocalPoint = center;
+      const estimatedCameraPosition = [
+        estimatedFocalPoint[0] + distance * normal[0],
+        estimatedFocalPoint[1] + distance * normal[1],
+        estimatedFocalPoint[2] + distance * normal[2],
+      ];
+
+      model.renderer
+        .getActiveCamera()
+        .setFocalPoint(
+          estimatedFocalPoint[0],
+          estimatedFocalPoint[1],
+          estimatedFocalPoint[2]
+        );
+
+      model.renderer
+        .getActiveCamera()
+        .setPosition(
+          estimatedCameraPosition[0],
+          estimatedCameraPosition[1],
+          estimatedCameraPosition[2]
+        );
+
+      // Project focalPoint onto image plane and preserve distance
+      publicAPI.updateCamera();
+
+      // Make sure entire image is visible.
+      publicAPI.resetCamera(publicAPI.getBounds());
+
+      // Reset clipping range
+      publicAPI.updateCamera();
+    }
   };
 }
 
