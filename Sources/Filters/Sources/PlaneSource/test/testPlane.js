@@ -49,8 +49,13 @@ test.onlyIfWebGL('Test vtkPlaneSource Rendering', (t) => {
   actor.setMapper(mapper);
 
   const PlaneSource = gc.registerResource(
-    vtkPlaneSource.newInstance({ xResolution: 5, yResolution: 10 })
+    vtkPlaneSource.newInstance({
+      normal: [0.04, -0.99, 0],
+      point1: [0, 12.7, -12.7],
+      point2: [0, -12.7, 12.7],
+    })
   );
+  PlaneSource.update();
   mapper.setInputConnection(PlaneSource.getOutputPort());
 
   // now create something to view it, in this case webgl
@@ -69,5 +74,6 @@ test.onlyIfWebGL('Test vtkPlaneSource Rendering', (t) => {
       gc.releaseResources
     );
   });
+  renderer.resetCamera();
   renderWindow.render();
 });
