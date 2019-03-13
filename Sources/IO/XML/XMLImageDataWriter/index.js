@@ -19,11 +19,11 @@ function convertScalars(scalars, format) {
 
 export const TYPED_ARRAY = {
   Int8Array: 'Int8',
-  UInt8Array: 'UInt8',
+  Uint8Array: 'UInt8',
   Int16Array: 'Int16',
-  UInt16Array: 'UInt16',
+  Uint16Array: 'UInt16',
   Int32Array: 'Int32',
-  UInt32Array: 'UInt32',
+  Uint32Array: 'UInt32',
   Float32Array: 'Float32',
   Float64Array: 'Float64',
 };
