@@ -5,29 +5,6 @@ import vtkXMLWriter from 'vtk.js/Sources/IO/XML/XMLWriter';
 // Global methods
 // ----------------------------------------------------------------------------
 
-function convertScalars(scalars, format) {
-  if (format === 'ascii') {
-    return scalars.join(' ');
-  }
-  if (format === 'binary') {
-    return 'not supported';
-  }
-  return 'unknown format';
-}
-
-// ----------------------------------------------------------------------------
-
-export const TYPED_ARRAY = {
-  Int8Array: 'Int8',
-  Uint8Array: 'UInt8',
-  Int16Array: 'Int16',
-  Uint16Array: 'UInt16',
-  Int32Array: 'Int32',
-  Uint32Array: 'UInt32',
-  Float32Array: 'Float32',
-  Float64Array: 'Float64',
-};
-
 // ----------------------------------------------------------------------------
 // vtkXMLImageDataWriter methods
 // ----------------------------------------------------------------------------
@@ -52,31 +29,17 @@ function vtkXMLImageDataWriter(publicAPI, model) {
       Extent: dataObject.getExtent().join(' '),
     });
 
-    const pointData = piece.ele('PointData', {
-      Scalars: dataObject
-        .getPointData()
-        .getScalars()
-        .getName(),
-    });
+    publicAPI.processDataSetAttributes(
+      piece,
+      'PointData',
+      dataObject.getPointData()
+    );
 
-    for (let i = 0; i < dataObject.getPointData().getNumberOfArrays(); ++i) {
-      const scalars = dataObject.getPointData().getArrayByIndex(i);
-
-      pointData.ele(
-        'DataArray',
-        {
-          type: TYPED_ARRAY[scalars.getDataType()],
-          Name: scalars.getName(),
-          format: model.format,
-          RangeMin: scalars.getRange()[0],
-          RangeMax: scalars.getRange()[1],
-          NumberOfComponents: scalars.getNumberOfComponents(),
-        },
-        convertScalars(scalars.getData(), model.format)
-      );
-    }
-
-    piece.ele('CellData');
+    publicAPI.processDataSetAttributes(
+      piece,
+      'CellData',
+      dataObject.getCellData()
+    );
 
     return parent;
   };
