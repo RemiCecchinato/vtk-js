@@ -163,7 +163,7 @@ function vtkImageReslice(publicAPI, model) {
       .getNumberOfComponents(); // or s.numberOfComponents;
 
     const outScalarsData = new window[dataType](
-      outDims[0] * outDims[1] * outDims[2]
+      outDims[0] * outDims[1] * outDims[2] * numComponents
     );
     const outScalars = vtkDataArray.newInstance({
       name: 'Scalars',
@@ -317,7 +317,7 @@ function vtkImageReslice(publicAPI, model) {
       );
     }
 
-    const background = model.backgroundColor;
+    const background = window[inputScalarType].from(model.backgroundColor);
 
     // set color for area outside of input volume extent
     // void *background;
@@ -560,16 +560,14 @@ function vtkImageReslice(publicAPI, model) {
               endIdX = iidX;
 
               // perform nearest-neighbor interpolation via pixel copy
-              const inPtrTmp = inPtrTmp0.subarray(
-                inIdX * inIncX + inIdY * inIncY + inIdZ * inIncZ
-              );
+              let offset = inIdX * inIncX + inIdY * inIncY + inIdZ * inIncZ;
 
               // when memcpy is used with a constant size, the compiler will
               // optimize away the function call and use the minimum number
               // of instructions necessary to perform the copy
               switch (bytesPerPixel) {
                 case 1:
-                  outPtrTmp[0] = inPtrTmp[0];
+                  outPtrTmp[0] = inPtrTmp0[offset];
                   break;
                 case 2:
                 case 3:
@@ -577,13 +575,15 @@ function vtkImageReslice(publicAPI, model) {
                 case 8:
                 case 12:
                 case 16:
-                  outPtrTmp.set(inPtrTmp.subarray(0, bytesPerPixel));
+                  outPtrTmp.set(
+                    inPtrTmp0.subarray(offset, offset + bytesPerPixel)
+                  );
                   break;
                 default: {
                   // TODO: check bytes
                   let oc = 0;
                   do {
-                    outPtrTmp[oc] = inPtrTmp[oc];
+                    outPtrTmp[oc] = inPtrTmp0[offset++];
                   } while (++oc !== bytesPerPixel);
                   break;
                 }
@@ -817,8 +817,8 @@ function vtkImageReslice(publicAPI, model) {
   };
 
   publicAPI.set1 = (outPtr, inPtr, numscalars, n) => {
-    outPtr.fill(inPtr[0], 0, numscalars * n);
-    return outPtr.subarray(numscalars * n);
+    outPtr.fill(inPtr[0], 0, n);
+    return outPtr.subarray(n);
   };
 
   publicAPI.getSetPixelsFunc = (dataType, dataSize, numscalars, dataPtr) =>
