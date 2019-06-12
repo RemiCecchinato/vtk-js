@@ -36,6 +36,7 @@ function vtkPaintFilter(publicAPI, model) {
       workerPromise.exec('start', {
         bufferType: 'Uint8Array',
         dimensions: model.labelMap.getDimensions(),
+        slicingMode: model.slicingMode,
       });
     }
   };
@@ -240,6 +241,7 @@ const DEFAULT_VALUES = {
   voxelFunc: null,
   radius: 1,
   label: 0,
+  slicingMode: null,
 };
 
 // ----------------------------------------------------------------------------
@@ -260,6 +262,7 @@ export function extend(publicAPI, model, initialValues = {}) {
     'voxelFunc',
     'label',
     'radius',
+    'slicingMode',
   ]);
 
   // Object specific methods
