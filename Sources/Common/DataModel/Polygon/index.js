@@ -71,29 +71,29 @@ function vtkPolygon(publicAPI, model) {
 
     const sN = [0, 0, 0];
     vtkMath.cross(v, model.normal, sN);
+    vtkMath.normalize(sN);
     if (vtkMath.norm(sN) === 0) {
       return false;
     }
 
-    let val = vtkPlane.evaluate(model.normal, previous.point, next.next.point);
+    let val = vtkPlane.evaluate(sN, previous.point, next.next.point);
     // eslint-disable-next-line no-nested-ternary
-    let currentSign = val > EPSILON ? 1 : val < EPSILON ? -1 : 0;
+    let currentSign = val > EPSILON ? 1 : val < -EPSILON ? -1 : 0;
     let oneNegative = currentSign < 0 ? 1 : 0;
 
-    let vertex = point;
-    for (let ptDId = 0; ptDId < model.pointCount; ptDId++) {
+    for (
+      let vertex = next.next.next;
+      vertex.id !== previous.id;
+      vertex = vertex.next
+    ) {
       const previousVertex = vertex.previous;
-      val = vtkPlane.evaluate(model.normal, previous.point, vertex.point);
-      let sign = 0;
-      if (val > EPSILON) {
-        sign = 1;
-      } else if (val < EPSILON) {
-        sign = -1;
-      }
+      val = vtkPlane.evaluate(sN, previous.point, vertex.point);
+      // eslint-disable-next-line no-nested-ternary
+      const sign = val > EPSILON ? 1 : val < -EPSILON ? -1 : 0;
 
       if (sign !== currentSign) {
         if (!oneNegative) {
-          oneNegative = sign < 0 ? 1 : 0;
+          oneNegative = sign <= 0 ? 1 : 0;
         }
 
         if (
@@ -110,8 +110,6 @@ function vtkPolygon(publicAPI, model) {
         }
         currentSign = sign;
       }
-
-      vertex = vertex.next;
     }
 
     return oneNegative === 1;
